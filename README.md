@@ -14,11 +14,11 @@ But you can also run it offline in R/Rstudio. To run the app locally, you'll nee
 
 Standard output generated with the included data:
 
-![alt text](https://github.com/JoachimGoedhart/polarVolcaNoseR/blob/master/polarVolcano.png "Output")
+![alt text](https://github.com/ScienceParkStudyGroup/polarVolcaNoseR/blob/main/polarVolcano.png "Output")
 
 A linear output of the same data is also availavle in the app:
 
-![alt text](https://github.com/JoachimGoedhart/polarVolcaNoseR/blob/master/linearVolcano.png "Output")
+![alt text](https://github.com/ScienceParkStudyGroup/polarVolcaNoseR/blob/main/linearVolcano.png "Output")
 
 
 
