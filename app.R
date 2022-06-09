@@ -1,5 +1,5 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# PolaRVolcaNoseR - A Shiny app for multiple volcano plots
+# polarVolcaNoseR - A Shiny app for multiple volcano plots
 # Created by Joachim Goedhart (@joachimgoedhart) and Román Gonzalez-Prieto (@HombreRRo)
 # first version 2021
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
