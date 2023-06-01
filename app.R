@@ -22,8 +22,10 @@
 #
 # ToDo:
 # warning when dots are located outside of sector (or clip!)
-# Export to PDF
 # Show table with hits
+
+
+######## SATT index???????? ######
 
 library(shiny)
 library(ggplot2)
@@ -38,8 +40,17 @@ library(scales)
 source("themes.R")
 
 #Read data
-df_1 <- read.csv('S1-SATTs_tidy.csv') %>% mutate_at(3:5, round, 2)
-df_2 <- read.csv('S2-SATTs_tidy.csv') %>% mutate_at(3:5, round, 2)
+# df_1 <- read.csv('S1-SATTs_tidy.csv') %>% mutate_at(3:5, round, 2)
+# df_2 <- read.csv('S2-SATTs_tidy.csv') %>% mutate_at(3:5, round, 2)
+
+
+# df_S1SATTs_Complement_All <- read.csv('S1-SATTs_Complement_All.csv')
+# df_S1SATTs_Complement_HS <- read.csv('S1-SATTs_Complement_HS.csv')
+# df_S1SATTs_GG_All <- read.csv('S1-SATTs_GG_All.csv')
+# df_S1SATTs_GG_HS<- read.csv('S1-SATTs_GG_HS.csv')
+
+
+
 
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
 Okabe_Ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
@@ -64,13 +75,28 @@ ui <- fluidPage(
                                                        "SUMO1-SATTs" = 1,
                                                        "SUMO2/3-SATTs" = 2),
                                                    selected =  1),
+                     
+                     
+                     radioButtons("control", "Negative Control:", choices = 
+                                    list(
+                                      "∆GG" = "GG",
+                                      "Complement" = "Complement"),
+                                  selected =  "GG"),
+                     
+                     radioButtons("subset", "Subset:", choices = 
+                                    list(
+                                      "All targets" = "All",
+                                      "HIS-SUMO1/SUMO2 targets" = "HS"),
+                                  selected =  "All"),
+                     
+                     
                      # 
                      # sliderInput("SATT_filter",
                      #             "SATT-index higher than:",
                      #             min = 0,
                      #             max = 1,
                      #             value = 0),
-                     textInput("SATT_Range", "Range SATT values (min,max)", value = "0,1"),
+                     # textInput("SATT_Range", "Range SATT values (min,max)", value = "-10,10"),
                      
                      selectizeInput(inputId = 'user_gene_list',
                                     label = "User selected hits:",
@@ -106,7 +132,8 @@ ui <- fluidPage(
             # plotOutput("coolplot", height = 'auto'),
           div(downloadButton("downloadHTML", "Download html file"),
               downloadButton("downloadPlotPDF", "Download pdf-file"),
-              girafeOutput("iplot", height="800", width="800"), style = "float:left")
+              girafeOutput("iplot", height="800", width="800"), htmlOutput("LegendText"), style = "float:left"),
+
             # girafeOutput("iplot", height="600", width="800")
         )
     )
@@ -130,8 +157,22 @@ server <- function(input, output, session) {
   #Get the data
     df_upload <- reactive({
       
-      if (input$dataset==1) {return(df_1)}
-      else {return(df_2)}
+      if (input$dataset==1) {
+        file_name <- paste("S1-SATTs", input$control, input$subset, sep="_")
+        print(file_name)
+        df <- read.csv(paste0(file_name,".csv"), stringsAsFactors=TRUE)
+      }
+      else if (input$dataset==2) {
+        file_name <- paste("S2-SATTs", input$control, input$subset, sep="_")
+        print(file_name)
+        df <- read.csv(paste0(file_name,".csv"), stringsAsFactors=TRUE)
+      }
+      
+      if (!"SATT.index" %in% colnames(df)) {
+        df$SATT.index = 0
+      }
+      
+      return(df)
 
       
     })
@@ -140,14 +181,18 @@ server <- function(input, output, session) {
       
       if (input$dark) {line_color="white"} else {line_color="gray20"}
       
-    df_tidy <- df_upload() %>% group_by(GENE_NAME) %>% mutate(ID = row_number(GENE_NAME))
+    df_tidy <- df_upload() 
+    # df_tidy <- df_tidy %>% group_by(GENE_NAME) %>% mutate(ID = row_number(GENE_NAME))
 
+    df_tidy <- df_tidy %>% mutate(ID = as.integer(Sumo))
+    
+    
     ##### SATT range #####
-    rng_y <- as.numeric(strsplit(input$SATT_Range,",")[[1]])
+    # rng_y <- as.numeric(strsplit(input$SATT_Range,",")[[1]])
     
-    df_tidy <- df_tidy %>% filter(SATT.index > rng_y[1] & SATT.index < rng_y[2])
+    # df_tidy <- df_tidy %>% filter(SATT.index > rng_y[1] & SATT.index < rng_y[2])
     
-    df_minus <- df_tidy %>% filter(SATT.index < 0)
+    # df_minus <- df_tidy %>% filter(SATT.index < 0)
 
     
     # auto
@@ -159,23 +204,21 @@ server <- function(input, output, session) {
     
     
     max_P <- max(df_tidy$minLogP, na.rm=T)
-    max_Diff <- max(df_tidy$minLogP, na.rm=T)
+    max_Diff <- max(df_tidy$Diff, na.rm=T)
     
     # Hide values that exceed those set by axis limits
     if (input$clip) {
       df_tidy <- df_tidy %>% filter(Diff <= scale_Diff) %>% filter(minLogP <= scale_P)
     }
     
-    df_tidy <- df_tidy %>% mutate(x = (x= ID +(Diff/scale_Diff)))
-    
-    
-    df_sectors <- df_tidy %>% ungroup() %>% select(Sumo, ID) %>% distinct()
+    df_tidy <- df_tidy %>% mutate(x= ID +(Diff/scale_Diff))
+
+    df_sectors <- data.frame(Sumo = as.factor(levels(df_tidy$Sumo)))
+    df_sectors <- df_sectors %>% mutate(ID = as.integer(Sumo))
     df_sectors <- df_sectors %>% mutate(x=ID, y=scale_P/2, width=1, height=scale_P*1.0)
     
+    print(df_sectors)
 
-
-
-    
     #######
     
     p <- ggplot(df_tidy, aes(x=x, y=minLogP))+
@@ -207,9 +250,21 @@ server <- function(input, output, session) {
     }
     
     
+    if (max(df_tidy$SATT.index) > 0) {
     p <- p+ geom_point_interactive(aes(color=`SATT.index`, tooltip = glue("{GENE_NAME}\nDifference: {Diff}\n-Log[p]: {minLogP}\nSATT index: {SATT.index}"), data_id = GENE_NAME), size=input$pointSize)+
         scale_color_viridis_c(limits=c(0, 1), oob=squish)+
         theme_light(base_size = 16, base_family = "sans")
+    } else {
+      p <- p+ geom_point_interactive(aes(color=`SATT.index`, tooltip = glue("{GENE_NAME}\nDifference: {Diff}\n-Log[p]: {minLogP}"), data_id = GENE_NAME), size=input$pointSize)+
+        theme_light(base_size = 16, base_family = "sans") +
+        scale_color_viridis_c(limits=c(0,1), guide=guide_legend(override.aes = list(color = "white"))) +
+        # https://stackoverflow.com/questions/42438450/make-legend-invisible-but-keep-figure-dimensions-and-margins-the-same
+        theme(legend.text = element_text(color = "white"),
+              legend.title = element_text(color = "white"),
+              legend.key = element_rect(fill = "white")
+        )
+
+    }
     
     
     if (input$dark) {p <- p+ theme_light_dark_bg(base_size = 16, base_family = "sans")}
@@ -385,6 +440,20 @@ server <- function(input, output, session) {
         
       }
       
+      
+      
+    })
+    
+    
+    ######## Figure Legend in HTML format #############
+    
+    output$LegendText <- renderText({
+      
+      HTML_Legend <- c('<p style="width:640px;padding: 0px 0px 0px 80px">Only proteins which are statistically enriched for and FDR=0.05 and S0=0.1 are shown. All proteins identified with corrected p-values under the cut off and/or statistically depleted are available in the datasets included in the manuscript</p>')
+      
+      #The width of the legend (style as a paragraph between <p></p>) is adjusted to the width of the plot
+      
+      # HTML_Legend <-append(HTML_Legend, paste('<p style="padding: 0px 200px 0px 80px; width=200px">', sep=""))
       
       
     })
